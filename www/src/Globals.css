@@ -1,0 +1,17 @@
+body
+{
+    background: black;
+    color: white;
+    font-family: Roboto, Arial, Helvetica, sans-serif;
+    padding: 10px;
+}
+
+.container {
+    min-width: 800px;
+    max-width: 1200px;
+    margin: 3em auto;
+}
+
+h1 {
+    border-bottom: solid 2px #dadada;    
+}

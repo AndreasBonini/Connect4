@@ -1,0 +1,87 @@
+@use './config';
+
+p,
+li,
+h1,
+h2,
+h3,
+h4 {
+  // Help prevent overflow of long words/names/URLs
+  overflow-wrap: break-word;
+
+  // Optional, not supported for all languages
+  hyphens: auto;
+
+  // Clear margin top
+  margin-top: 0;
+}
+
+
+@function type-style($key) {
+    @return map-get($type-styles, $key);
+  }
+  
+
+// List in descending order to prevent extra sort function
+$type-levels: 4, 3, 2, 1;
+
+// Create map with h[x] as key
+// and computed font-size as value
+$type-styles: ();
+$level-size: config.$type-base-size;
+@each $level in $type-levels {
+  $level-size: $level-size * config.$type-size-ratio;
+  $type-styles: map-merge($type-styles, (#{"h"}$level: $level-size));
+  // Output heading styles
+  // Assign to element and create utility class
+  h#{$level},
+  .h#{$level} {
+    // Fallback for browsers that don't support min / max
+    font-size: $level-size;
+
+    // Recommendation courtesy of this brilliant work:
+    // @link https://kittygiraudel.com/2020/05/18/using-calc-to-figure-out-optimal-line-height/
+    line-height: calc(2px + 2ex + 2px);
+
+    // Set with `em` to be relative to current `font-size`
+    margin-bottom: 0.65em;
+
+    // Limit in place based on testing -> smaller ratios are
+    // prematurely or unnecessarily reduced
+    @if (config.$type-size-ratio > 1.2) {
+      // Fluid type styles
+
+      // Remove unit for calculations
+      $level-unitless: $level-size / ($level-size * 0 + 1);
+
+      // Set minimum size to a percentage less than $level-size
+      // Reduction is greater for large font sizes (> 4rem) to help
+      // prevent overflow due to font-size on mobile devices
+      $fluid-reduction: if($level-size > 4, 0.5, 0.33);
+      $fluid-min: $level-unitless - ($fluid-reduction * $level-unitless);
+
+      // Prevent dropping lower than 1rem (body font-size)
+      $fluid-min: if($fluid-min > config.$type-base-size, $fluid-min, 1);
+
+      // Adjust max modifier slightly per level to prevent "same" size
+      // or lower levels appaering larger than higher levels
+      // 4vw was selected by testing from $type-ratios map, YMMV 🙃
+      $fluid-scaler: ($level-unitless - $fluid-min) + 4vw;
+
+      font-size: clamp(
+        #{$fluid-min}rem,
+        #{$fluid-scaler} + 1rem,
+        #{$level-size}
+      );
+    }
+  }
+}
+
+  
+body {
+    // Ensure base applied as default for all other elements
+    font-size: config.$type-base-size;
+    font-family: config.$type-base-font, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+    line-height: 1.5;
+}
