@@ -17,30 +17,41 @@ export default class Connect4
         const squares = this.squares.slice();
         let row = squares[index];
     
+        // Reversing the row if playing from the right side
         if (side === 'R')
           row = row.reverse();
-        
-        let emptySlotIndex = null;
+
+        try { // Need finally {} to make sure I re-reverse the row, oteherwise it's dangerous as someone else may return from the function in the middle and forget about it
+              // (as it just happened to me)
+              let emptySlotIndex = null;
     
-        for (let i = 0; i < Config.gridSize; ++i)
-        {
-          if (row[i] === Config.emptySymbol)
-          {
-            emptySlotIndex = i;
-            break;
-          }
+              for (let i = 0; i < Config.gridSize; ++i)
+              {
+                if (row[i] === Config.emptySymbol)
+                {
+                  emptySlotIndex = i;
+                  break;
+                }
+              }
+      
+              if (emptySlotIndex === null)
+                return false;
+      
+              for (let i = emptySlotIndex; i > 0; --i)
+                row[i] = row[i - 1];
+              row[0] = symbol;
+      
         }
-    
-        if (emptySlotIndex === null)
-          return false;
-    
-        row[emptySlotIndex] = symbol;
-        if (side === 'R')
-          row = row.reverse();
+        catch (e) { throw e; }
+        finally {
+          if (side === 'R')
+            row = row.reverse();
         
           this.squares = squares;
-          return squares;
-    }
+        }
+
+        return squares;
+      }
 
     // Checks ONLY if it's within bounds, not if it can be played
     isValidPosition(side, index)
