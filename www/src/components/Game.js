@@ -63,7 +63,7 @@ export default class Game extends React.Component
 
   registerCommandHandlers()
   {
-    Messages.registerHandler('ERROR', (ws, json) => { console.log("Server error: " + json.error, json); });
+    Messages.registerHandler('ERROR', (ws, json) => { console.log("Server reported this error: " + json.error, json); });
 
     Messages.registerHandler('ERR_GAME_IN_PROGRESS', ws => {
         this.setState({

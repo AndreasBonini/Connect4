@@ -88,8 +88,6 @@ class Server
       Timestamp: new Date().toISOString().slice(0, 19).replace('T', ' ')
     };
 
-    console.log(dbObject);
-
     connection.connect(err => {
       if (err) {
         console.log("Couldn't connect to MySQL", err);

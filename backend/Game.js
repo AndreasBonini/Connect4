@@ -33,7 +33,6 @@ export default class Game
 
     broadcastMessage(cmd, obj)
     {
-        console.log('Broadcasting ' + cmd);
         Messages.sendMessage(this.red, cmd, obj);
         Messages.sendMessage(this.yellow, cmd, obj);
     }
