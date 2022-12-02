@@ -252,7 +252,7 @@ export default class Game extends React.Component
 
     return (
         <>
-      <div className={"game"}>
+      <div className={"game unselectable"}>
         {this.state.gameExists && <Board
             squares={this.state.squares} isOurTurn={this.state.isOurTurn}
             displaySelectors={displaySelectors} selectedIndex={this.state.selectedIndex} selectedSide={this.state.selectedSide} selectorColor={selectorColor}

@@ -15,3 +15,13 @@ body
 h1 {
     border-bottom: solid 2px #dadada;    
 }
+
+
+.unselectable {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
