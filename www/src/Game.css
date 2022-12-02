@@ -75,3 +75,27 @@ aside p
   color: #808080;
 }
 
+
+/* Mobile */
+
+@media screen and (max-width: 767px)  {
+  aside { display: none } /* The text suggesting to use the keyboard to play */
+
+  .container {
+    width: 320px;
+    margin-top: 1em;
+  }
+
+  .game {
+    margin: 0 auto;
+  }
+
+  .notice {
+    max-width: 300px;
+    display: block;
+    margin: 5px 0;
+    font-size: 16px;
+  }
+}
+
+

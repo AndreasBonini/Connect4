@@ -152,9 +152,7 @@ export default class Game extends React.Component
     if (index >= Config.gridSize)
       index = Config.gridSize - 1;
 
-    if (!this.canPlayerMakeMove())
-      return false;
-    if (this.state.side === side && this.state.selectedIndex === index)
+    if (this.state.selectedSide === side && this.state.selectedIndex === index)
       return false;
 
     Messages.sendMessage(this.ws, 'PRESELECT_MOVE', {side: side, index: index});
@@ -194,17 +192,18 @@ export default class Game extends React.Component
     }
    }
 
-   playMove()
+   // side and index are optional; if missing it plays the pre-selected move
+   playMove(side, index)
    {
     if (!this.canPlayerMakeMove())
         return;
 
-    const newSquares = this.connect4.playMove(this.state.playerColor, this.state.selectedSide, this.state.selectedIndex);
+    const newSquares = this.connect4.playMove(this.state.playerColor, side, index);
 
     if (!newSquares)
         return; // Fail silently; most likely the player tried to stack a piece where there is no space. Telling what's wrong will be obvious to the player, from seeing the board
 
-    Messages.sendMessage(this.ws, "MOVE", {side: this.state.selectedSide, index: this.state.selectedIndex})
+    Messages.sendMessage(this.ws, "MOVE", {side: side, index: index})
 
     this.setState({
         squares: newSquares,
@@ -257,7 +256,7 @@ export default class Game extends React.Component
         {this.state.gameExists && <Board
             squares={this.state.squares} isOurTurn={this.state.isOurTurn}
             displaySelectors={displaySelectors} selectedIndex={this.state.selectedIndex} selectedSide={this.state.selectedSide} selectorColor={selectorColor}
-            onColumnSelectorHover={(side, index) => this.preselectMove(side, index)} onColumnSelectorClick={(side, index) => { this.preselectMove(side, index); this.playMove(); }}
+            onColumnSelectorHover={(side, index) => this.preselectMove(side, index)} onColumnSelectorClick={(side, index) => { this.preselectMove(side, index); this.playMove(side, index); }}
             onSelectorHover={(side, col) => this.preselectMove(side, col)}
             onKeyPress={(key) => { this.handleKeyPress(key); }}
         />}
