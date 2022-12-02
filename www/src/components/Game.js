@@ -185,7 +185,7 @@ export default class Game extends React.Component
         this.preselectMove("L", this.state.selectedIndex);
         break;
       case 'Enter':
-        this.playMove();
+        this.playMove(this.state.selectedSide, this.state.selectedIndex);
         break;
       default:
         break;

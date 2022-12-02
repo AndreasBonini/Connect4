@@ -95,7 +95,7 @@ class Server
       }
 
       connection.query("USE " + Credentials.Database);
-      connection.query("INSERT INTO games SET ?", dbObject, (err, result) => console.log('INSERT Query', err, result));
+      connection.query("INSERT INTO games SET ?", dbObject, (err, result) => { if (err) console.log('INSERT Query', err, result); });
     });
 
     this.game = null
