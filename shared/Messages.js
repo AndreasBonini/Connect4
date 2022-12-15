@@ -10,6 +10,9 @@ export default class Messages
 
     static sendMessage(ws, cmd, obj)
     {
+        if (!ws)
+            return;
+
         obj = obj ?? {};
         if (Array.isArray(ws))
             ws.map(socket => this.sendMessage(socket, cmd, obj));

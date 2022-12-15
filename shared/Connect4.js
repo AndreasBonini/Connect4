@@ -12,7 +12,7 @@ export default class Connect4
     // Returns false if a move couldn't be made, and a .sliced() copy of the new squares if it could
     playMove(playerColor, side, index)
     {
-        const symbol = playerColor == "RED" ? Config.redSymbol : Config.yellowSymbol;
+        const symbol = playerColor === "RED" ? Config.redSymbol : Config.yellowSymbol;
 
         const squares = this.squares.slice();
         let row = squares[index];
@@ -65,11 +65,11 @@ export default class Connect4
       let atLeastOneEmptySpace = false;
 
       const chkLine = (a, b, c, d) => {
-        if (a == Config.emptySymbol || b == Config.emptySymbol || c == Config.emptySymbol || d == Config.emptySymbol)
+        if (a === Config.emptySymbol || b === Config.emptySymbol || c === Config.emptySymbol || d === Config.emptySymbol)
           atLeastOneEmptySpace = true;
 
 
-        return ((a != Config.emptySymbol) && (a === b) && (a === c) && (a === d));
+        return ((a !== Config.emptySymbol) && (a === b) && (a === c) && (a === d));
       }
 
       const chkWin = () => {

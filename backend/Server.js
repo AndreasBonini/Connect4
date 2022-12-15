@@ -11,9 +11,12 @@ class Server
   constructor()
   {
     this.wss = new WebSocketServer({ port: Config.websocketPort });
+
+    // (unused)
     this.clients = new Map();
+
+    // Represents the current game session
     this.game = null;
-    this.clientWaitingToJoinGame = null;
 
     this.wss.on('connection', ws => this.onConnection(ws));
     this.#registerMessageHandlers();
@@ -21,43 +24,75 @@ class Server
 
   onConnection(ws)
   {
-    const id = Utils.generateGUID();
-    const metadata = {
-      id: id,
-      playerColor: null
-    };
+    let gameSession = null;
+    let playerColor = null;
 
-    this.clients.set(ws, metadata);
-    ws.on('message', msg => this.onMessage(ws, msg));
-    ws.on('close', () => this.onDisconnection(ws));
+    // Create a new game instance; client will be color red, and will be waiting for yellow
+    if (this.game === null)
+    {
+      playerColor = "RED";
+      gameSession = new Game(winner => { this.onGameEnd(winner); }, disconnectedPlayerColor => { this.onPlayerDisconnected(disconnectedPlayerColor); });
+      gameSession.setWsByColor(playerColor, ws);
+      this.game = gameSession;
+      Messages.sendMessage(ws, 'WAITING_FOR_OPPONENT');
+    }
 
-    if (this.game)
+    // A client reconnected
+    else if (this.game.hasStarted && (this.game.redPlayerWs !== null || this.game.yellowPlayerWs !== null))
+    {
+      playerColor = (this.game.redPlayerWs === null ? "RED" : "YELLOW");
+      gameSession = this.game;
+
+      gameSession.setWsByColor(playerColor, ws);
+      Messages.sendMessage(ws, 'GAME_STARTED', { playerColor: playerColor });
+      gameSession.broadcastMessage("GAME_RESUMED", { reconnectedPlayerColor: playerColor, nextTurn: gameSession.nextTurn, board: gameSession.connect4.squares });
+    }
+
+    // A client is trying to connect while a game is in progress
+    else if (this.game.hasStarted)
     {
       Messages.sendMessage(ws, 'ERR_GAME_IN_PROGRESS');
-      return;
     }
 
-    if (this.clientWaitingToJoinGame == null)
+    // Game has not started, and red player is waiting for yellow player
+    else if (!this.game.hasStarted && this.game.yellowPlayerWs === null)
     {
-      this.clientWaitingToJoinGame = ws;
-      Messages.sendMessage(ws, 'WAITING_FOR_OPPONENT');
+      playerColor = "YELLOW";
+      gameSession = this.game;
+      gameSession.setWsByColor(playerColor, ws);
+      gameSession.hasStarted = true;
+
+      Messages.sendMessage(gameSession.redPlayerWs, 'GAME_STARTED', { playerColor: "RED" });
+      Messages.sendMessage(gameSession.yellowPlayerWs, 'GAME_STARTED', { playerColor: "YELLOW" });
+    }
+
+    // Should never happen
+    else
+    {
+      throw new Error("Unreachable code");
+    }
+
+    const wsMetadata = {
+      id: Utils.generateGUID(),
+      game: gameSession,
+      color: playerColor
+    };
+
+    this.clients.set(ws, wsMetadata);
+    ws.on('message', msg => this.onMessage(ws, msg));
+    ws.on('close', () => this.onDisconnection(ws));
+  }
+
+  onPlayerDisconnected(disconnectedPlayerColor)
+  {
+    if (!this.game || this.game.isFinished || (!this.game.redPlayerWs && !this.game.yellowPlayerWs))
+    {
+      this.game = null;
       return;
     }
 
-    const red = this.clientWaitingToJoinGame;
-    const yellow = ws;
-
-    this.game = new Game(red, yellow, winner => { this.onGameEnd(winner); });
-
-    const initPlayer = (ws, color) => {
-      const metadata = this.clients.get(ws);
-      this.clients.set(ws, {...metadata, game: this.game.id, color: color});
-      Messages.sendMessage(ws, 'GAME_STARTED', { playerColor: color });
-    }
-
-    initPlayer(red, "RED");
-    initPlayer(yellow, "YELLOW");
-    this.clientWaitingToJoinGame = null;
+    this.game.setWsByColor(disconnectedPlayerColor, null);
+    this.game.broadcastMessage('PLAYER_DISCONNECTED', { disconnectedPlayerColor: disconnectedPlayerColor });
   }
 
   onMessage(ws, jsonAsText)
@@ -103,34 +138,29 @@ class Server
 
   onDisconnection(ws)
   {
-    if (ws == this.clientWaitingToJoinGame)
-    {
-      this.clientWaitingToJoinGame = null;
-      return;
-    }
+    const metadata = this.clients.get(ws);
 
-    if (!this.game)
+    if (!metadata || !metadata.game || !metadata.color)
       return;
 
-    const isRedPlayer = this.game.red == ws;
-    const isYellowPlayer = this.game.yellow == ws;
-
-    if (isRedPlayer)
-      this.game.playerDisconnected("RED");
-    if (isYellowPlayer)
-      this.game.playerDisconnected("YELLOW");
+    metadata.game.playerDisconnected(metadata.color);
   }
 
   #registerMessageHandlers()
   {
     // Same code to check if the preselection or the actual move is valid; it returns either false or a websocket of the "other player"
     const checkMoveAndGetOtherPlayer = (ws, side, index) => {
-      if (!this.game.isValidPosition(side, index))
+      const metadata = this.clients.get(ws);
+
+      if (!metadata)
+        return false;
+
+      if (!metadata.game.isValidPosition(side, index))
         throw new Error("Position is out of bounds");
-      if (this.game.nextTurn != ws)
+      if (metadata.game.nextTurn != metadata.color)
         throw new Error("Not their turn");
 
-      const otherPlayer = (ws == this.game.red ? this.game.yellow : this.game.red);
+      const otherPlayer = metadata.color == "RED" ? metadata.game.yellowPlayerWs : metadata.game.redPlayerWs;
       return otherPlayer;
     }
 
@@ -141,20 +171,23 @@ class Server
 
     Messages.registerHandler('MOVE', (ws, obj) => {
       const metadata = this.clients.get(ws);
+
+      if (!metadata)
+        return;
+
       const otherPlayer = checkMoveAndGetOtherPlayer(ws, obj.side, obj.index);
-      const otherPlayerMetadata = this.clients.get(ws);
-      const newSquares = this.game.connect4.playMove(metadata.color, obj.side, obj.index);
+      const newSquares = metadata.game.connect4.playMove(metadata.color, obj.side, obj.index);
 
       if (!newSquares)
         return; // Fail silently, like the client; this happens when stacking pieces if there is no space
 
       Messages.sendMessage(otherPlayer, 'OPPONENT_MOVE', { side: obj.side, index: obj.index });
-      this.game.nextTurn = otherPlayer;
+      metadata.game.nextTurn = metadata.color == "RED" ? "YELLOW" : "RED";
 
-      const winner = this.game.connect4.checkWinCondition();
+      const winner = metadata.game.connect4.checkWinCondition();
 
       if (winner)
-        this.game.endGame(winner);
+        metadata.game.endGame(winner);
     });
 
 

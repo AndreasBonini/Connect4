@@ -46,6 +46,7 @@ export default class Game extends React.Component
 
     this.ws = new WebSocket(`${Config.websocketProtocol}://${Config.websocketIP}:${Config.websocketPort}`);
     this.ws.onopen = () => { console.log('WebSocket connection successful') };
+    
     this.ws.onclose = () => this.setState({
         gameHasEnded: true,
         gameExists: this.state.gameHasStarted,
@@ -64,6 +65,24 @@ export default class Game extends React.Component
   registerCommandHandlers()
   {
     Messages.registerHandler('ERROR', (ws, json) => { console.log("Server reported this error: " + json.error, json); });
+
+    Messages.registerHandler('GAME_RESUMED', (ws, json) => {
+      console.log(this.state.playerColor, json);
+      const isOurTurn = json.nextTurn === this.state.playerColor;
+      this.connect4.squares = json.board;
+
+      this.setState({
+          gameHasStarted: true,
+          isOurTurn: isOurTurn,
+
+          noticeMessage: `The game has resumed. You are color ${this.state.playerColor.toLowerCase()}. ${isOurTurn ? "It is your turn." : "It is your opponent's turn."}`,
+          noticeType: "notice " + (isOurTurn ? "" : "green"),
+
+          squares: this.connect4.squares.slice(),
+          opponentDisconnected: false
+      });
+
+    });
 
     Messages.registerHandler('ERR_GAME_IN_PROGRESS', ws => {
         this.setState({
@@ -91,19 +110,18 @@ export default class Game extends React.Component
             isOurTurn: isOurTurn,
 
             noticeMessage: `The game has started. You are color ${json.playerColor.toLowerCase()}. ${isOurTurn ? "It is your turn." : "It is your opponent's turn."}`,
-            noticeType: "notice " + (isOurTurn ? "" : "yellow")
+            noticeType: "notice " + (isOurTurn ? "" : "yellow"),
+
+            opponentDisconnected: false
         });
       });
 
       Messages.registerHandler('PLAYER_DISCONNECTED', (ws, json) => {
         this.setState({
-            gameHasStarted: true,
-            gameHasEnded: true,
-            isOurTurn: false,
-            winner: json.winner,
+          noticeMessage: "The other player has disconnected. Waiting for them to reconnect...",
+          noticeType: "error",
 
-            noticeMessage: "The other player disconnected. You won.",
-            noticeType: "error"
+          opponentDisconnected: true
         });
       });
 
@@ -130,6 +148,8 @@ export default class Game extends React.Component
 
             noticeMessage: "It is your turn.",
             noticeType: "message",
+
+            opponentDisconnected: false
         });
 
         this.checkWinCondition();
@@ -162,11 +182,12 @@ export default class Game extends React.Component
 
   canPlayerMakeMove()
   { 
-    return this.state.gameExists && this.state.gameHasStarted && !this.state.gameHasEnded && this.state.isOurTurn;
+    return this.state.gameExists && this.state.gameHasStarted && !this.state.gameHasEnded && this.state.isOurTurn && !this.state.opponentDisconnected;
   }
 
   handleKeyPress(event)
   {
+    let preventDefault = true;
     if (!this.canPlayerMakeMove())
         return;
 
@@ -188,8 +209,12 @@ export default class Game extends React.Component
         this.playMove(this.state.selectedSide, this.state.selectedIndex);
         break;
       default:
+        preventDefault = false;
         break;
     }
+
+    if (preventDefault)
+      event.preventDefault();
    }
 
    // side and index are optional; if missing it plays the pre-selected move
@@ -258,7 +283,7 @@ export default class Game extends React.Component
             displaySelectors={displaySelectors} selectedIndex={this.state.selectedIndex} selectedSide={this.state.selectedSide} selectorColor={selectorColor}
             onColumnSelectorHover={(side, index) => this.preselectMove(side, index)} onColumnSelectorClick={(side, index) => { this.preselectMove(side, index); this.playMove(side, index); }}
             onSelectorHover={(side, col) => this.preselectMove(side, col)}
-            onKeyPress={(key) => { this.handleKeyPress(key); }}
+            onKeyPress={(key) => { this.handleKeyPress(key); return false; }}
         />}
         <Notice text={this.state.noticeMessage} colorType={this.state.noticeType} />
       </div>
