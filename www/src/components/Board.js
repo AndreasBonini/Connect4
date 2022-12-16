@@ -6,7 +6,7 @@ import Square from './Square.js'
 export default function Board(props)
 {
   useEffect(() => {
-    window.addEventListener('keydown', props.onKeyPress);
+    window.addEventListener("keydown", props.onKeyPress);
     return () => window.removeEventListener("keydown", props.onKeyPress);
   });
 

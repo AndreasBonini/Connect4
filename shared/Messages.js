@@ -44,17 +44,6 @@ export default class Messages
     {
         Messages.sendMessage(ws, 'ERROR', { error: errorAsString })
     }
-
-    /*
-    static sendGameUpdates(clients, game, cmd, obj)
-    {
-        for (const [ws, metadata] of Object.entries(clients))
-        {
-            if (metadata.game == game)
-                Messages.sendMessage(ws, cmd, obj);
-        }
-    }
-    */
 }
 
 

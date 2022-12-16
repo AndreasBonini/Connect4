@@ -10,3 +10,5 @@ export const placeholderSymbol = "⚫️";
 export const websocketProtocol = "ws";
 export const websocketIP = "localhost";
 export const websocketPort = 3333;
+
+export const debugMode = true;

@@ -64,8 +64,8 @@ export default class Game
     {
         this.setWsByColor(disconnectedPlayerColor, null);
 
-        if (!this.isFinished)
-            this.broadcastMessage("PLAYER_DISCONNECTED", {color: disconnectedPlayerColor});
+        if (!this.hasGameFinished)
+            this.broadcastMessage('PLAYER_DISCONNECTED', {color: disconnectedPlayerColor});
 
         this.onPlayerDisconnected(disconnectedPlayerColor);
     }
@@ -78,5 +78,5 @@ export default class Game
             Messages.sendMessage(this.yellowPlayerWs, cmd, obj);
     }
 
-    get isFinished() { return this.winner != null; }
+    get hasGameFinished() { return this.winner != null; }
 }

@@ -45,7 +45,7 @@ class Server
 
       gameSession.setWsByColor(playerColor, ws);
       Messages.sendMessage(ws, 'GAME_STARTED', { playerColor: playerColor });
-      gameSession.broadcastMessage("GAME_RESUMED", { reconnectedPlayerColor: playerColor, nextTurn: gameSession.nextTurn, board: gameSession.connect4.squares });
+      gameSession.broadcastMessage('GAME_RESUMED', { reconnectedPlayerColor: playerColor, nextTurn: gameSession.nextTurn, board: gameSession.connect4.squares });
     }
 
     // A client is trying to connect while a game is in progress
@@ -101,7 +101,8 @@ class Server
 
     if (!success)
     {
-      Messages.sendError(ws, error.toString()); // This exposes backend error information to the client, it's only for debugging purposes, should be removed in production
+      if (Config.debugMode)
+        Messages.sendError(ws, error.toString());
       return;
     }
   }
@@ -110,7 +111,7 @@ class Server
   {
     this.game.winner = winner;
 
-    const connection = mysql.createConnection({
+    const dbConnection = mysql.createConnection({
       host     : Credentials.Host,
       user     : Credentials.User,
       password : Credentials.Password,
@@ -123,17 +124,17 @@ class Server
       Timestamp: new Date().toISOString().slice(0, 19).replace('T', ' ')
     };
 
-    connection.connect(err => {
+    dbConnection.connect(err => {
       if (err) {
         console.log("Couldn't connect to MySQL", err);
         return;
       }
 
-      connection.query("USE " + Credentials.Database);
-      connection.query("INSERT INTO games SET ?", dbObject, (err, result) => { if (err) console.log('INSERT Query', err, result); });
+      dbConnection.query("USE " + Credentials.Database);
+      dbConnection.query("INSERT INTO games SET ?", dbObject, (err, result) => { if (err) console.log('INSERT Query', err, result); });
     });
 
-    this.game = null
+    this.game = null;
   }
 
   onDisconnection(ws)
@@ -157,7 +158,7 @@ class Server
 
       if (!metadata.game.isValidPosition(side, index))
         throw new Error("Position is out of bounds");
-      if (metadata.game.nextTurn != metadata.color)
+      if (metadata.game.nextTurn !== metadata.color)
         throw new Error("Not their turn");
 
       const otherPlayer = metadata.color == "RED" ? metadata.game.yellowPlayerWs : metadata.game.redPlayerWs;
@@ -179,7 +180,7 @@ class Server
       const newSquares = metadata.game.connect4.playMove(metadata.color, obj.side, obj.index);
 
       if (!newSquares)
-        return; // Fail silently, like the client; this happens when stacking pieces if there is no space
+        return; // Fail silently; the client will behave in the same way. This happens when stacking pieces if there is no space
 
       Messages.sendMessage(otherPlayer, 'OPPONENT_MOVE', { side: obj.side, index: obj.index });
       metadata.game.nextTurn = metadata.color == "RED" ? "YELLOW" : "RED";

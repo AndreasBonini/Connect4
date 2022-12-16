@@ -1,6 +1,7 @@
 
 import * as Config from './Config.js'
 
+// Connect4 board class, shared between the server and the client
 
 export default class Connect4
 {
@@ -9,7 +10,7 @@ export default class Connect4
         this.squares = Array(Config.gridSize).fill(0).map(() => new Array(Config.gridSize).fill(Config.emptySymbol));
     }
 
-    // Returns false if a move couldn't be made, and a .sliced() copy of the new squares if it could
+    // Returns false if a move can't be made, and a .sliced() copy of the new squares if it can
     playMove(playerColor, side, index)
     {
         const symbol = playerColor === "RED" ? Config.redSymbol : Config.yellowSymbol;
@@ -17,30 +18,29 @@ export default class Connect4
         const squares = this.squares.slice();
         let row = squares[index];
     
-        // Reversing the row if playing from the right side
+        // Reverse the array if playing from the right side – the try {} finally {} below will ensure it gets unreversed
         if (side === 'R')
           row = row.reverse();
 
-        try { // Need finally {} to make sure I re-reverse the row, oteherwise it's dangerous as someone else may return from the function in the middle and forget about it
-              // (as it just happened to me)
-              let emptySlotIndex = null;
-    
-              for (let i = 0; i < Config.gridSize; ++i)
-              {
-                if (row[i] === Config.emptySymbol)
-                {
-                  emptySlotIndex = i;
-                  break;
-                }
-              }
-      
-              if (emptySlotIndex === null)
-                return false;
-      
-              for (let i = emptySlotIndex; i > 0; --i)
-                row[i] = row[i - 1];
-              row[0] = symbol;
-      
+        try
+        {
+          let emptySlotIndex = null;
+
+          for (let i = 0; i < Config.gridSize; ++i)
+          {
+            if (row[i] === Config.emptySymbol)
+            {
+              emptySlotIndex = i;
+              break;
+            }
+          }
+  
+          if (emptySlotIndex === null)
+            return false;
+  
+          for (let i = emptySlotIndex; i > 0; --i)
+            row[i] = row[i - 1];
+          row[0] = symbol;
         }
         catch (e) { throw e; }
         finally {
