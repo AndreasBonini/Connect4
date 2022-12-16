@@ -99,3 +99,18 @@ aside p
 }
 
 
+.react-dots-loader
+{
+  margin-left: 10px;
+}
+
+.react-dots-loader__circle
+{
+  background-color: white !important;
+}
+
+.turn-info {
+  color: #a0a0a0;
+  font-size: 22px;
+  margin: 0;
+}

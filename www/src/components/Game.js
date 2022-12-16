@@ -32,11 +32,19 @@ export default class Game extends React.Component
       playerColor: null,
       isOurTurn: null,
 
-      noticeMessage: "Connecting...",
-      noticeType: "message",
-
       winner: null
     };
+  }
+
+  showNotice(text, cssClass = "notice", showLoader = false, showPlayerColor = true, showNextTurn = true)
+  {
+    this.setState({
+      notice: text ?? "",
+      noticeCssClass: cssClass,
+      noticeShowLoader: showLoader,
+      noticeShowPlayerColor: showPlayerColor,
+      noticeShowNextTurn: showNextTurn
+    });
   }
 
   connect()
@@ -47,12 +55,14 @@ export default class Game extends React.Component
     this.ws = new WebSocket(`${Config.websocketProtocol}://${Config.websocketIP}:${Config.websocketPort}`);
     this.ws.onopen = () => { console.log('WebSocket connection successful') };
     
-    this.ws.onclose = () => this.setState({
+    this.ws.onclose = () => {
+      this.setState({
         gameHasEnded: true,
-        gameExists: this.state.gameHasStarted,
-        noticeMessage: this.state.gameHasStarted ? "Disconnected from the server (the game has ended)" : "Unable to connect to the server",
-        noticeType: "error big"
-    });
+        gameExists: this.state.gameHasStarted
+      });
+
+      this.showNotice("Disconnected from server (refresh to reconnect).", "error big", false, false, false);
+    };
 
     this.ws.onmessage = (event) => {
     const [success, error] = Messages.tryParseAndExecuteMessage(this.ws, event.data);
@@ -62,7 +72,7 @@ export default class Game extends React.Component
     };    
   }
 
-  registerCommandHandlers()
+  #registerCommandHandlers()
   {
     Messages.registerHandler('ERROR', (ws, json) => { console.log("Server reported this error: " + json.error, json); });
 
@@ -74,31 +84,17 @@ export default class Game extends React.Component
       this.setState({
           gameHasStarted: true,
           isOurTurn: isOurTurn,
-
-          noticeMessage: `The game has resumed. You are color ${this.state.playerColor.toLowerCase()}. ${isOurTurn ? "It is your turn." : "It is your opponent's turn."}`,
-          noticeType: "notice " + (isOurTurn ? "" : "green"),
-
           squares: this.connect4.squares.slice(),
           opponentDisconnected: false
       });
+      
+      this.showNotice("The game has resumed.", "notice green");
 
     });
 
-    Messages.registerHandler('ERR_GAME_IN_PROGRESS', ws => {
-        this.setState({
-            noticeMessage: "You cannot play right now as a game is already in progress.",
-            noticeType: "error big",
-            gameExists: false
-        });
-    })
+    Messages.registerHandler('ERR_GAME_IN_PROGRESS', (ws, josn) => this.showNotice("You cannot play at this time, as another game is in progress.", "error big", false, false, false));
 
-    Messages.registerHandler('WAITING_FOR_OPPONENT', (ws, json) => {
-        this.setState({
-            noticeMessage: `Waiting for opponent. You will be color red.`,
-            noticeType: "notice"
-        });
-
-    })
+    Messages.registerHandler('WAITING_FOR_OPPONENT', (ws, json) => this.showNotice("Waiting for opponent.", "notice", true, true, false));
 
     Messages.registerHandler('GAME_STARTED', (ws, json) => {
         const isOurTurn = json.playerColor === 'RED';
@@ -109,20 +105,18 @@ export default class Game extends React.Component
             gameHasStarted: true,
             isOurTurn: isOurTurn,
 
-            noticeMessage: `The game has started. You are color ${json.playerColor.toLowerCase()}. ${isOurTurn ? "It is your turn." : "It is your opponent's turn."}`,
-            noticeType: "notice " + (isOurTurn ? "" : "yellow"),
-
             opponentDisconnected: false
         });
+
+        this.showNotice("The game has started.", "notice green");
       });
 
       Messages.registerHandler('PLAYER_DISCONNECTED', (ws, json) => {
         this.setState({
-          noticeMessage: "The other player has disconnected. Waiting for them to reconnect...",
-          noticeType: "error",
-
           opponentDisconnected: true
         });
+
+        this.showNotice("The other player disconnected – Waiting for them to come back.", "notice error", true);
       });
 
       Messages.registerHandler('OPPONENT_PRESELECTION', (ws, json) => {
@@ -146,11 +140,10 @@ export default class Game extends React.Component
             selectedIndex: 0,
             selectedSide: "L",
 
-            noticeMessage: "It is your turn.",
-            noticeType: "message",
-
             opponentDisconnected: false
         });
+
+        this.showNotice("Play your move!", "message green");
 
         this.checkWinCondition();
       });
@@ -158,8 +151,9 @@ export default class Game extends React.Component
 
   componentDidMount()
   {
+    this.showNotice("Connecting", "notice", true, false, false);
     this.connect();
-    this.registerCommandHandlers();
+    this.#registerCommandHandlers();
   }
 
   preselectMove(side, index)
@@ -234,13 +228,12 @@ export default class Game extends React.Component
         squares: newSquares,
         isOurTurn: false,
 
-        noticeMessage: "It's your opponent's turn.",
-        noticeType: "message yellow",
-
         // Always reset the pre-selected index to the initial position on every turn
         selectedIndex: 0,
         selectedSide: "L"
     });
+
+    this.showNotice("It's your opponent's turn.", "message yellow", true);
 
     this.checkWinCondition();
    }
@@ -250,23 +243,22 @@ export default class Game extends React.Component
     const winner = this.connect4.checkWinCondition();
     const isThisPlayer = this.state.playerColor === winner;
 
-    let message = "?";
+    let notice = "(null)";
     if (winner === 'TIE')
-      message = "There are no spaces left on the board. It's a tie!";
+      notice = "There are no spaces left on the board. It's a tie!";
     else if (isThisPlayer)
-      message = "You won!";
+      notice = "You won!";
     else
-      message = "Your opponent has won!";
+      notice = "Your opponent has won!";
 
     if (winner) {
       this.setState({
         isOurTurn: false,
         gameHasEnded: true,
-        winner: winner,
-
-        noticeMessage: message,
-        noticeType: "message victory",
+        winner: winner
       });
+      
+      this.showNotice(notice, "message winner", false, false, false);
     }
    }
 
@@ -274,6 +266,12 @@ export default class Game extends React.Component
   {
     const displaySelectors = this.state.gameHasStarted && !this.state.gameHasEnded;
     const selectorColor = this.state.isOurTurn ? this.state.playerColor : (this.state.playerColor === "RED" ? "YELLOW" : "RED");
+    let nextTurnPlayerColor = null;
+
+    if (this.state.isOurTurn === true)
+      nextTurnPlayerColor = this.state.playerColor;
+    else if (this.state.isOurTurn === false)
+      nextTurnPlayerColor = this.state.playerColor === 'RED' ? 'YELLOW' : 'RED';
 
     return (
         <>
@@ -285,7 +283,12 @@ export default class Game extends React.Component
             onSelectorHover={(side, col) => this.preselectMove(side, col)}
             onKeyPress={(key) => { this.handleKeyPress(key); return false; }}
         />}
-        <Notice text={this.state.noticeMessage} colorType={this.state.noticeType} />
+
+        <Notice
+          text={this.state.notice} textCss={this.state.noticeCssClass}
+          showLoader={this.state.noticeShowLoader} showPlayerColor={this.state.noticeShowPlayerColor} showNextTurn={this.state.noticeShowNextTurn}
+          playerColor={this.state.playerColor} nextTurn={nextTurnPlayerColor}
+          />
       </div>
 
       {this.state.gameExists && <aside>
